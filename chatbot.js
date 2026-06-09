@@ -27,8 +27,7 @@ const client = new Client({
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--single-process"
+      "--disable-gpu"
     ],
   },
 });
@@ -99,6 +98,8 @@ async function enviarMenuPrincipal(msg, numero) {
 //                   TRATAMENTO DE MENSAGENS
 // ======================================================================
 client.on("message", async (msg) => {
+
+  console.log("[DEBUG] recebido de:", msg.from, "| body:", msg.body);
 
   const numero = msg.from;
 
