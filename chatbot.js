@@ -10,6 +10,9 @@ const estadoUsuario = {};
 // Reset diário
 let ultimoDia = new Date().getDate();
 
+// Identifica chats privados (WhatsApp pode entregar com sufixo @c.us ou @lid)
+const ehChatPrivado = (numero) => numero.endsWith("@c.us") || numero.endsWith("@lid");
+
 
 // ======================================================================
 // LOGS COM TIMESTAMP (pt-BR)
@@ -99,8 +102,6 @@ async function enviarMenuPrincipal(msg, numero) {
 // ======================================================================
 client.on("message", async (msg) => {
 
-  console.log("[DEBUG] recebido de:", msg.from, "| body:", msg.body);
-
   const numero = msg.from;
 
   try {
@@ -118,7 +119,7 @@ client.on("message", async (msg) => {
     if (["menu", "reiniciar"].includes(texto)) {
       encerrarFluxo(numero);
       log("Atendimento reiniciado manualmente para:", numero);
-      if (numero.endsWith("@c.us")) {
+      if (ehChatPrivado(numero)) {
         return enviarMenuPrincipal(msg, numero);
       }
       return;
@@ -132,7 +133,7 @@ client.on("message", async (msg) => {
     // ------------------ GATILHOS PARA O MENU ------------------
     const gatilhos = /(menu|dia|tarde|noite|oi|olá|ola|sistema|e-mail|senha|institucional)/i;
 
-    if (gatilhos.test(texto) && numero.endsWith("@c.us")) {
+    if (gatilhos.test(texto) && ehChatPrivado(numero)) {
 
       // Evitar repetição
       if (usuariosComMenuEnviado.has(numero)) return;
