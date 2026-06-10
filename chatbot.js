@@ -15,6 +15,60 @@ const ehChatPrivado = (numero) => numero.endsWith("@c.us") || numero.endsWith("@
 
 
 // ======================================================================
+// MENSAGENS REUTILIZÁVEIS
+// ======================================================================
+const RODAPE = "Ou digite *menu* para voltar ao início.";
+const COLETA_DADOS = "Por favor, informe seu nome completo, matrícula e unidade de ensino.";
+const CONFIRMACAO = "Informações recebidas! Um atendente dará continuidade ao processo.";
+const DESCRICAO_FOTO = "Agora envie uma descrição do problema e, se possível, uma foto mostrando o que está acontecendo.";
+const INVALIDO = "Opção inválida. Digite o número de uma das opções.";
+
+const MENU_EMAIL =
+  "✉️ *E-mail institucional*\nEscolha uma opção:\n\n" +
+  "1 - Criar e-mail institucional\n" +
+  "2 - Redefinir senha do e-mail\n" +
+  "3 - Verificação em duas etapas\n\n" +
+  RODAPE;
+
+const PERGUNTA_PROFESSOR =
+  "📘 Sistema Educ+. Você utiliza o sistema como professor?\n\n" +
+  "1 - Sim\n2 - Não\n\n" +
+  RODAPE;
+
+const MENU_PROFESSOR =
+  "👨‍🏫 *Educ+ — Professor*\nEscolha uma opção:\n\n" +
+  "1 - Problemas de acesso\n" +
+  "2 - Apontamentos\n" +
+  "3 - Acesso aos tutoriais\n" +
+  "4 - Outro problema\n\n" +
+  RODAPE;
+
+const MENU_GESTOR =
+  "🧑‍💼 *Educ+ — Gestor*\nEscolha uma opção:\n\n" +
+  "1 - Problemas de acesso\n" +
+  "2 - Incluir professor no quadro de horários\n" +
+  "3 - Acesso aos tutoriais\n" +
+  "4 - Outro problema\n\n" +
+  RODAPE;
+
+const TUTORIAL_PROFESSOR =
+  "Aqui estão os tutoriais para professores:\n" +
+  "https://drive.google.com/drive/folders/14AtcoUeTJAZUvytcfGtZSeQjEjcdM4XK\n\n" +
+  RODAPE;
+
+const TUTORIAL_GESTOR =
+  "Aqui estão os tutoriais para gestores:\n" +
+  "https://drive.google.com/drive/folders/1ohZxJ8AdeY_o2I898u342ZxqXtX_cLzj\n\n" +
+  RODAPE;
+
+const INCLUIR_PROFESSOR =
+  "Informe os dados do professor em uma lista, no formato *nome - matrícula - função*. Exemplo:\n\n" +
+  "Maria Silva - 700900 - Regente\n" +
+  "Carla Souza - 701800 - Tecnomaker\n" +
+  "Antônio Santos - 702700 - Ed. Física";
+
+
+// ======================================================================
 // LOGS COM TIMESTAMP (pt-BR)
 // ======================================================================
 const agora = () => new Date().toLocaleString("pt-BR");
@@ -66,6 +120,17 @@ async function responderFormatado(msg, texto) {
 
 
 // ======================================================================
+// INICIA UMA ETAPA DE COLETA DE DADOS
+// pedeFoto=true -> COLETA_DADOS -> DESCRICAO_FOTO -> CONFIRMACAO
+// pedeFoto=false -> COLETA_DADOS -> CONFIRMACAO
+// ======================================================================
+function iniciarColeta(msg, numero, pedeFoto) {
+  estadoUsuario[numero] = { etapa: "coleta_dados", pedeFoto };
+  return responderFormatado(msg, COLETA_DADOS);
+}
+
+
+// ======================================================================
 // ENVIO DO MENU PRINCIPAL
 // ======================================================================
 async function enviarMenuPrincipal(msg, numero) {
@@ -82,15 +147,12 @@ async function enviarMenuPrincipal(msg, numero) {
   const name = contact.pushname?.split(" ")[0] ?? "usuário";
 
   await responderFormatado(msg,
-    `${saudacao} ${name}! Eu sou o assistente virtual do DTE.\n\n` +
+    `${saudacao} ${name}! Eu sou o assistente virtual do SISTEC.\n\n` +
     `Como posso te ajudar hoje? Digite o número da opção.\n\n` +
-    `1 - Ajuda com a senha do e-mail institucional\n` +
-    `2 - Criar um e-mail institucional\n` +
-    `3 - Ajuda com formulários e planilhas da SME\n` +
-    `4 - Verificação de duas etapas do e-mail institucional\n` +
-    `5 - Sistema Educa BM (submenu)\n` +
-    `6 - Falar com atendente humano\n\n` +
-    `Ou digite *menu* para voltar ao início.`
+    `1 - Ajuda com e-mail institucional\n` +
+    `2 - Formulários e planilhas da SME\n` +
+    `3 - Sistema Educ+\n\n` +
+    RODAPE
   );
 
   estadoUsuario[numero] = { etapa: "menu_principal" };
@@ -156,79 +218,100 @@ async function processarFluxo(msg, texto, numero) {
 
     // ------------------ MENU PRINCIPAL ------------------
     if (estado.etapa === "menu_principal") {
-
       switch (texto) {
+        case "1": // E-mail institucional -> submenu
+          estadoUsuario[numero] = { etapa: "submenu_email" };
+          return responderFormatado(msg, MENU_EMAIL);
 
-        case "1":
-          estadoUsuario[numero] = { etapa: "senha_email" };
-          return responderFormatado(msg, "Me envie seu *nome completo* e *matrícula* para gerar a nova senha.");
+        case "2": // Formulários e planilhas da SME -> dados + foto
+          return iniciarColeta(msg, numero, true);
 
-        case "2":
-          estadoUsuario[numero] = { etapa: "criar_email" };
-          return responderFormatado(msg, "Envie seu *nome completo* e *matrícula* para criarmos seu e-mail institucional.");
-
-        case "3":
-          estadoUsuario[numero] = { etapa: "form_sme" };
-          return responderFormatado(msg,
-            "Me envie as seguintes informações:\n\n" +
-            "- Qual formulário ou planilha?\n" +
-            "- Qual é a dificuldade?\n" +
-            "*Lembre-se:* somente funciona com e-mail institucional."
-          );
-
-        case "4":
-          estadoUsuario[numero] = { etapa: "duas_etapas" };
-          return responderFormatado(msg, "Envie seu *nome completo* e *matrícula*.\nUm atendente irá te ajudar.");
-
-        case "5":
-          estadoUsuario[numero] = { etapa: "submenu_educa" };
-          return responderFormatado(msg,
-            "📘 *Sistema Educa BM*\nEscolha uma opção:\n\n" +
-            "5.1 - Problemas de acesso\n" +
-            "5.2 - Lançamento de notas\n" +
-            "5.3 - Relatórios\n" +
-            "5.4 - Outro problema"
-          );
-
-        case "6":
-          estadoUsuario[numero] = { etapa: "atendente" };
-          return responderFormatado(msg,
-            "Se puder, envie uma descrição do problema.\n\n" +
-            "👨‍💼 Um atendente irá responder por ordem de chamado."
-          );
+        case "3": // Sistema Educ+ -> pergunta professor
+          estadoUsuario[numero] = { etapa: "educ_professor" };
+          return responderFormatado(msg, PERGUNTA_PROFESSOR);
       }
-
-      return responderFormatado(msg, "Opção inválida. Digite apenas números do menu.");
+      return responderFormatado(msg, INVALIDO);
     }
 
-    // ------------------ SUBMENU EDUCA BM ------------------
-    if (estado.etapa === "submenu_educa") {
-
-      const perguntas = {
-        "5.1": "Certo! Qual problema de acesso você está enfrentando?",
-        "5.2": "Entendido. Qual dificuldade você encontrou no lançamento de notas?",
-        "5.3": "De qual relatório você precisa?",
-        "5.4": "Descreva o problema que está acontecendo no Educa BM.",
-      };
-
-      if (perguntas[texto]) {
-        estadoUsuario[numero] = { etapa: "educa_descricao", subopcao: texto };
-        return responderFormatado(msg, perguntas[texto]);
+    // ------------------ SUBMENU E-MAIL ------------------
+    if (estado.etapa === "submenu_email") {
+      // 1 - Criar / 2 - Redefinir senha / 3 - Verificação em duas etapas
+      if (["1", "2", "3"].includes(texto)) {
+        return iniciarColeta(msg, numero, false);
       }
-
-      return responderFormatado(msg, "Opção inválida. Digite *5.1*, *5.2*, *5.3* ou *5.4*.");
+      return responderFormatado(msg, INVALIDO);
     }
 
-    // ------------------ COLETA DA DESCRIÇÃO DO EDUCA BM ------------------
-    if (estado.etapa === "educa_descricao") {
+    // ------------------ EDUC+ : VOCÊ É PROFESSOR? ------------------
+    if (estado.etapa === "educ_professor") {
+      if (texto === "1") { // Sim -> menu professor
+        estadoUsuario[numero] = { etapa: "menu_professor" };
+        return responderFormatado(msg, MENU_PROFESSOR);
+      }
+      if (texto === "2") { // Não -> menu gestor
+        estadoUsuario[numero] = { etapa: "menu_gestor" };
+        return responderFormatado(msg, MENU_GESTOR);
+      }
+      return responderFormatado(msg, INVALIDO);
+    }
+
+    // ------------------ MENU PROFESSOR ------------------
+    if (estado.etapa === "menu_professor") {
+      switch (texto) {
+        case "1": // Problemas de acesso
+        case "2": // Apontamentos
+          return iniciarColeta(msg, numero, false);
+
+        case "3": // Acesso aos tutoriais -> link e encerra
+          encerrarFluxo(numero);
+          return responderFormatado(msg, TUTORIAL_PROFESSOR);
+
+        case "4": // Outro problema -> dados + foto
+          return iniciarColeta(msg, numero, true);
+      }
+      return responderFormatado(msg, INVALIDO);
+    }
+
+    // ------------------ MENU GESTOR ------------------
+    if (estado.etapa === "menu_gestor") {
+      switch (texto) {
+        case "1": // Problemas de acesso
+          return iniciarColeta(msg, numero, false);
+
+        case "2": // Incluir professor no quadro de horários -> lista + confirma
+          estadoUsuario[numero] = { etapa: "coleta_descricao" };
+          return responderFormatado(msg, INCLUIR_PROFESSOR);
+
+        case "3": // Acesso aos tutoriais -> link e encerra
+          encerrarFluxo(numero);
+          return responderFormatado(msg, TUTORIAL_GESTOR);
+
+        case "4": // Outro problema -> dados + foto
+          return iniciarColeta(msg, numero, true);
+      }
+      return responderFormatado(msg, INVALIDO);
+    }
+
+    // ------------------ COLETA DE DADOS (nome, matrícula, unidade) ------------------
+    if (estado.etapa === "coleta_dados") {
+      if (estado.pedeFoto) {
+        estadoUsuario[numero] = { etapa: "coleta_descricao" };
+        return responderFormatado(msg, DESCRICAO_FOTO);
+      }
       encerrarFluxo(numero);
-      return responderFormatado(msg, "Informações recebidas! Um atendente dará continuidade ao processo.");
+      return responderFormatado(msg, CONFIRMACAO);
     }
 
-    // ------------------ QUALQUER OUTRA ETAPA ------------------
-    // Aqui, após coletar a informação, encerramos o fluxo.
+    // ------------------ COLETA DA DESCRIÇÃO / FOTO (passo final) ------------------
+    // Aceita texto ou imagem; qualquer mensagem encerra com a confirmação.
+    if (estado.etapa === "coleta_descricao") {
+      encerrarFluxo(numero);
+      return responderFormatado(msg, CONFIRMACAO);
+    }
+
+    // ------------------ FALLBACK ------------------
     encerrarFluxo(numero);
-    return responderFormatado(msg, "Informações recebidas! Um atendente dará continuidade ao processo.");
+    return responderFormatado(msg, CONFIRMACAO);
   } catch (err) {
     logErro("Erro ao processar fluxo para", numero, err);
   }
