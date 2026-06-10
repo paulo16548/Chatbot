@@ -7,6 +7,11 @@ const usuariosComMenuEnviado = new Set();
 // Controle de estado do usuário
 const estadoUsuario = {};
 
+const pausados = {};                 // numero -> timestamp da última atividade enquanto pausado
+const idsMensagensBot = new Set();   // ids das mensagens enviadas pelo próprio bot
+const DOZE_HORAS = 12 * 60 * 60 * 1000;
+const botEnviando = new Set();   // numeros para os quais o bot está enviando agora
+
 // Reset diário
 let ultimoDia = new Date().getDate();
 
@@ -95,6 +100,24 @@ client.on("disconnected", r => client.initialize());
 
 client.initialize();
 
+// ======================================================================
+// DETECÇÃO DE ATENDENTE HUMANO (mensagem fromMe que NÃO veio do bot)
+// ======================================================================
+client.on("message_create", (msg) => {
+  try {
+    if (!msg.fromMe) return;
+    if (idsMensagensBot.has(msg.id._serialized)) return; // ignora as próprias respostas do bot
+    if (botEnviando.has(msg.to)) return; // bot está enviando agora, ignora
+    const numero = msg.to;
+    pausados[numero] = Date.now();
+    delete estadoUsuario[numero];
+    usuariosComMenuEnviado.delete(numero);
+    console.log("Atendimento pausado (atendente humano assumiu):", numero);
+  } catch (e) {
+    console.error("Erro no message_create:", e);
+  }
+});
+
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 
@@ -115,7 +138,13 @@ async function responderFormatado(msg, texto) {
   await delay(1500);
   await chat.sendStateTyping();
   await delay(2000);
-  await client.sendMessage(msg.from, texto);
+  botEnviando.add(msg.from);
+  try {
+    const enviada = await client.sendMessage(msg.from, texto);
+    if (enviada?.id?._serialized) idsMensagensBot.add(enviada.id._serialized);
+  } finally {
+    botEnviando.delete(msg.from);
+  }
 }
 
 
@@ -165,6 +194,18 @@ async function enviarMenuPrincipal(msg, numero) {
 client.on("message", async (msg) => {
 
   const numero = msg.from;
+
+  if (pausados[numero]) {
+    if (Date.now() - pausados[numero] >= DOZE_HORAS) {
+      delete pausados[numero];
+      delete estadoUsuario[numero];
+      usuariosComMenuEnviado.delete(numero);
+      // expira a pausa e segue o fluxo normal (reinicia do início)
+    } else {
+      pausados[numero] = Date.now(); // mantém a janela de 12h deslizando enquanto houver atividade
+      return; // bot fica em silêncio
+    }
+  }
 
   try {
     const texto = msg.body.toLowerCase().trim();
