@@ -98,6 +98,27 @@ client.on("qr", (qr) => qrcode.generate(qr, { small: true }));
 client.on("ready", () => log("Tudo certo! WhatsApp conectado."));
 client.on("disconnected", r => client.initialize());
 
+client.on("call", async (call) => {
+  try {
+    await call.reject();
+    const numero = call.from;
+    console.log("Chamada recusada de:", numero);
+    botEnviando.add(numero);
+    try {
+      const enviada = await client.sendMessage(
+        numero,
+        "Olá! 👋 Não atendemos chamadas por aqui.\n\n" +
+        "Por favor, envie sua dúvida em uma *mensagem de texto* que o assistente virtual irá te ajudar."
+      );
+      if (enviada?.id?._serialized) idsMensagensBot.add(enviada.id._serialized);
+    } finally {
+      botEnviando.delete(numero);
+    }
+  } catch (e) {
+    console.error("Erro ao recusar chamada:", e);
+  }
+});
+
 client.initialize();
 
 // ======================================================================
@@ -226,6 +247,11 @@ client.on("message", async (msg) => {
         return enviarMenuPrincipal(msg, numero);
       }
       return;
+    }
+
+    // ------------------ BLOQUEIO DE ÁUDIO DURANTE O FLUXO ------------------
+    if ((msg.type === "ptt" || msg.type === "audio") && estadoUsuario[numero]) {
+      return responderFormatado(msg, "Mensagem inválida. Por favor, envie uma mensagem de texto.");
     }
 
     // ------------------ SE ESTÁ EM UM FLUXO, ENTRA NO FLUXO ------------------
